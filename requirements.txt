@@ -1,0 +1,9 @@
+numpy
+scipy
+matplotlib
+pytest
+cocotb>=2.0
+pyserial
+# Host viewer (M11+); comment out if PyQt wheels are unavailable:
+# pyqtgraph
+# PyQt6
