@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project tool outputs
+out/
+sim_build/
+*.vcd
+*.fst
+*.fst.hier
+results.xml
+__pycache__/

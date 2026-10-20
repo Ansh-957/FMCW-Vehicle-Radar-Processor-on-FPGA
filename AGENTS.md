@@ -1,0 +1,30 @@
+# Project context for AI assistants
+
+This repo is an FMCW radar signal processor in SystemVerilog for a Gowin GW2A-18 FPGA
+(Sipeed Tang Primer 20K). The full spec is docs/PLAN.md. Read it before changing anything.
+
+## Ground rules
+
+- The integer model in model/fixed/ is the source of truth. RTL must match it bit for bit.
+- Never change a width, rounding mode or parameter in RTL without updating model/params.py,
+  rtl/pkg/radar_pkg.sv and docs/PLAN.md section 4 in the same change.
+- Every RTL module needs a cocotb test in tb/cocotb/<module>/ that compares against the model.
+- Do not invent hardware details (pins, IP names, register addresses). Ask, or leave a TODO.
+- When unsure about timing or latency, write the cycle-by-cycle behaviour as a comment first.
+
+## SystemVerilog style
+
+- SystemVerilog-2012 synthesizable subset; must pass verilator --lint-only -Wall.
+- always_ff with <= for registers, always_comb with = for logic, no latches.
+- Clock clk, synchronous active-high reset rst, one clock per module (CDC cells excepted).
+- Inputs end in _i, outputs in _o, active-low in _n.
+- Streams use valid/ready: transfer on valid && ready; valid never waits for ready;
+  data holds while valid && !ready.
+- Parameters and types come from radar_pkg. No magic numbers.
+- Memories are inferred via rtl/common/ram_sdp.sv. Vendor primitives only in rtl/top/top_primer20k.sv.
+- Declare signed explicitly, widen before arithmetic, comment every truncation.
+
+## Python
+
+- model/ uses NumPy; model/fixed/ uses integer arithmetic only.
+- Tests use pytest; plots are saved to out/.

@@ -1,0 +1,52 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  model:
+    name: Golden model (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy scipy matplotlib pytest
+      - run: pytest model/tests -v
+
+  lint:
+    name: Verilator + Verible lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y verilator
+      - name: Verilator lint
+        run: |
+          verilator --lint-only -Wall rtl/pkg/radar_pkg.sv
+          verilator --lint-only -Wall rtl/common/counter.sv
+      - name: Install Verible
+        run: |
+          curl -fL -o verible.tar.gz \
+            https://github.com/chipsalliance/verible/releases/download/v0.0-4296-g0f262651/verible-v0.0-4296-g0f262651-linux-static-x86_64.tar.gz
+          tar xzf verible.tar.gz --strip-components=1 -C /usr/local --wildcards '*/bin/*'
+      - name: Verible lint
+        run: verible-verilog-lint --rules_config .rules.verible_lint $(git ls-files 'rtl/*.sv')
+
+  cocotb:
+    name: cocotb unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y verilator
+      - run: pip install cocotb pytest numpy
+      - name: Run all cocotb testbenches
+        run: |
+          for d in tb/cocotb/*/; do
+            if [ -f "$d/Makefile" ]; then
+              echo "=== $d ==="
+              make -C "$d"
+            fi
+          done
