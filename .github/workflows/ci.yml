@@ -2,10 +2,15 @@ name: CI
 
 on: [push, pull_request]
 
+env:
+  # Must match the local install (~/opt/oss-cad-suite/VERSION) so CI runs
+  # the same Verilator build as the laptop.
+  OSS_CAD_DATE: "2026-10-18"
+
 jobs:
   model:
     name: Golden model (pytest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,34 +21,43 @@ jobs:
 
   lint:
     name: Verilator + Verible lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y verilator
-      - name: Verilator lint
+      - name: Install OSS CAD Suite
         run: |
-          verilator --lint-only -Wall rtl/pkg/radar_pkg.sv
-          verilator --lint-only -Wall rtl/common/counter.sv
+          D=$OSS_CAD_DATE; F=${D//-/}
+          curl -fsSL -o oss.tgz "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/$D/oss-cad-suite-linux-x64-$F.tgz"
+          tar xzf oss.tgz -C "$HOME"
+          echo "PATH=$PATH:$HOME/oss-cad-suite/bin" >> "$GITHUB_ENV"
+      - name: Verilator lint
+        run: verilator --lint-only -Wall --top-module counter rtl/pkg/radar_pkg.sv rtl/common/counter.sv
       - name: Install Verible
         run: |
           curl -fL -o verible.tar.gz \
             https://github.com/chipsalliance/verible/releases/download/v0.0-4296-g0f262651/verible-v0.0-4296-g0f262651-linux-static-x86_64.tar.gz
-          tar xzf verible.tar.gz --strip-components=1 -C /usr/local --wildcards '*/bin/*'
+          sudo tar xzf verible.tar.gz --strip-components=1 -C /usr/local --wildcards '*/bin/*'
       - name: Verible lint
         run: verible-verilog-lint --rules_config .rules.verible_lint $(git ls-files 'rtl/*.sv')
 
   cocotb:
     name: cocotb unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: sudo apt-get update && sudo apt-get install -y verilator
+      - name: Install OSS CAD Suite
+        run: |
+          D=$OSS_CAD_DATE; F=${D//-/}
+          curl -fsSL -o oss.tgz "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/$D/oss-cad-suite-linux-x64-$F.tgz"
+          tar xzf oss.tgz -C "$HOME"
+          echo "PATH=$PATH:$HOME/oss-cad-suite/bin" >> "$GITHUB_ENV"
       - run: pip install cocotb pytest numpy
       - name: Run all cocotb testbenches
         run: |
+          verilator --version
           for d in tb/cocotb/*/; do
             if [ -f "$d/Makefile" ]; then
               echo "=== $d ==="
