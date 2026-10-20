@@ -1,50 +1,122 @@
 # FMCW Vehicle Radar Processor on FPGA
 
-An FMCW (frequency-modulated continuous wave) automotive radar signal processor written in
-SystemVerilog for the Sipeed Tang Primer 20K (Gowin GW2A-18). Raw 24 GHz radar echoes become
-a live range-Doppler heat map on HDMI and a target list streamed to a laptop over UART.
+<img width="960" height="720" alt="image" src="https://github.com/user-attachments/assets/0d23d3b4-3b64-48a8-a403-68e88fc2f383" />
 
-Full specification: [docs/PLAN.md](docs/PLAN.md)
+A real-time signal processor for a 24 GHz automotive radar, written in SystemVerilog for a Sipeed Tang Primer 20K FPGA. It turns raw radar echoes into a live **distance × speed map** on an HDMI monitor and streams a **list of detected vehicles** to a laptop, with the goal of running in a real car.
 
-## Status
+> **Status:** in progress. The simulation environment and floating-point golden model (milestones M0–M1) are complete and passing CI. The fixed-point model and RTL are next. See [Roadmap](#roadmap).
 
-| Milestone | Description | Status |
+---
+
+## What it does
+
+An FMCW radar transmits a *chirp*, a radio signal whose frequency rises steadily. Echoes return slightly delayed, so mixing them with the outgoing chirp produces a tone whose pitch encodes **distance**. Over many chirps, a moving object's echo shifts a little each time, which encodes **speed**.
+
+This project builds the hardware that turns those tones into answers, in real time:
+
+```
+ 24 GHz radar ──► front-end ──► ADC ──►  FPGA (this project)  ──► HDMI: live range-Doppler heat map
+    ▲                                    │                    └─► UART: target list to laptop
+    └──── chirp ramp ◄── DAC ◄───────────┘
+```
+
+Inside the FPGA, every frame:
+
+1. **Range FFT:** one 256-point FFT per chirp turns beat tones into distance bins.
+2. **Corner turn:** chirps are stored as columns and read back as rows.
+3. **Doppler FFT:** one 64-point FFT per range bin, across chirps, turns phase changes into speed bins.
+4. **Log power:** builds the 128 × 64 range-Doppler map.
+5. **CFAR detection:** an adaptive threshold separates real targets from noise.
+6. **Peak grouping and target list:** reports up to 32 targets per frame.
+
+## Design targets
+
+| Parameter | Value |
+| --- | --- |
+| Carrier frequency | 24.125 GHz |
+| Chirp bandwidth / duration | 200 MHz / 256 µs |
+| ADC | 2 × 12-bit simultaneous I/Q at 1 MSPS (Digilent Pmod AD1) |
+| Range resolution / maximum | 0.75 m / ~96 m |
+| Speed resolution / unambiguous | 0.35 m/s / ±11.1 m/s |
+| Frame rate | 20 frames/s |
+| System clock | 60 MHz |
+| FPGA | Gowin GW2A-18: 20,736 LUT4, 828 Kbit block RAM, 48 multipliers |
+
+Range resolution comes from the chirp bandwidth, ΔR = c / 2B. Maximum range is set by the ADC rate; actual detection range depends on the radar module's sensitivity.
+
+## Architecture highlights
+
+- **Memory-based radix-2 FFT engine**, time-shared between range and Doppler processing. A 256-point range FFT takes ~17 µs against a 280 µs chirp, so one butterfly is enough. A fully pipelined FFT would cost roughly 10× the multipliers for throughput the design doesn't need.
+- **Bit-exact fixed-point datapath.** Every stage's width, rounding and saturation is specified and matched by an integer-only Python model.
+- **Vendor-neutral RTL.** Gowin primitives live only in the board top level, so the design simulates in Verilator and ports to other FPGAs or an ASIC flow.
+- **Built-in test-tone generator**, so the full processing chain runs on the board with no radar attached.
+- **Two clock domains:** 60 MHz system and 25.2 MHz HDMI pixel, with a single, explicit crossing point.
+
+## Verification
+
+The Python fixed-point model is the single source of truth. Every RTL block must match it bit for bit before it's merged.
+
+| Layer | Tools | Checks |
 | --- | --- | --- |
-| M0 | Environment and skeleton | In progress |
-| M1 | Floating-point golden model | In progress |
-| M2–M10 | Fixed-point model, RTL, UVM, synthesis | Planned |
-| M11–M16 | Board bring-up, real sensor, in-car | Planned |
+| Golden model | pytest | Fixed-point vs floating-point SNR loss; known-answer tests (e.g. a target at 30 m lands in range bin 40) |
+| Unit | cocotb + Verilator | Each RTL module against its model block, directed and random |
+| Integration | cocotb + Verilator | Full core on synthetic scenes; range-Doppler map and targets bit-exact |
+| System | UVM (Vivado xsim) | Constrained-random scenes, DPI-C scoreboard, SVA assertions, functional coverage |
 
-## Key numbers (default profile)
-
-- 24.125 GHz carrier, 200 MHz chirps of 256 µs, 64 chirps per frame, 20 fps
-- 0.75 m range resolution out to ~96 m; 0.35 m/s speed resolution up to ±11.1 m/s
-- 256-point range FFT + 64-point Doppler FFT on a shared memory-based radix-2 engine
+CI runs the model, lint (Verilator + Verible) and cocotb tests on every push.
 
 ## Repository layout
 
-```text
-model/      Python golden model (params.py, scene.py, chain_float.py, fixed/, tests/)
-scripts/    gen_rom.py — twiddle, window, log and colour-map .mem files
-rtl/        SystemVerilog: pkg/ common/ frontend/ dsp/ io/ top/
-tb/         cocotb unit + integration tests, UVM env, DPI-C model, SVA
-fpga/gowin/ Gowin project, pin (.cst) and timing (.sdc) constraints
-host/       live viewer, logger, tracker (laptop side)
+```
+model/          Python golden model: parameters, scene generator, float and fixed-point chains
+rtl/            SystemVerilog: pkg/ common/ frontend/ dsp/ io/ top/
+tb/             cocotb unit/integration tests, UVM environment, SVA, DPI-C reference model
+fpga/gowin/     Gowin project, pin and timing constraints
+host/           Laptop viewer, logger and tracker
+scripts/        Environment setup, ROM generation, demos
+docs/PLAN.md    Full implementation plan and specification
 ```
 
-## How to run
+## Getting started
+
+Developed on Ubuntu under WSL2. Simulation needs no hardware.
 
 ```bash
-# set up PATH (Verilator, make/g++, Verible) and activate the venv
+git clone https://github.com/Ansh-957/FMCW-Vehicle-Radar-Processor-on-FPGA.git
+cd FMCW-Vehicle-Radar-Processor-on-FPGA
+
+# Tools: OSS CAD Suite (Verilator, Icarus, yosys, GTKWave), Verible, Python 3.12 venv
 source scripts/env.sh
 
-# golden-model tests
-pytest model/tests -v
-
-# cocotb unit tests (needs Verilator 5.x)
-make -C tb/cocotb/counter
+pytest model/tests                 # golden model tests
+make -C tb/cocotb/counter          # cocotb smoke test
+python scripts/demo_scene.py       # simulate a 3-target scene and plot the range-Doppler map
 ```
+
+FPGA builds use the free **Gowin EDA Education Edition**, targeting device `GW2A-LV18PG256C8/I7`.
+
+<!-- Add the demo plot: copy out/<demo image>.png to docs/img/m1_rd_map.png and uncomment.
+![Simulated range-Doppler map with three detected targets](docs/img/m1_rd_map.png)
+-->
 
 ## Results
 
-Utilization, Fmax, latency, coverage and detection accuracy will be published here at M10+.
+Measured numbers will be published here as milestones complete: FPGA utilization, Fmax per clock domain, frame latency, functional coverage, and detection accuracy against tape-measured distances.
+
+## Hardware
+
+| Part | Role |
+| --- | --- |
+| Sipeed Tang Primer 20K + Dock | FPGA, HDMI, PMOD ports, USB-UART |
+| RFbeam K-LC6 | 24 GHz FMCW radar transceiver with I/Q outputs |
+| HB100 | 10.5 GHz Doppler module (speed-only mode) |
+| Digilent Pmod AD1 | Dual simultaneous 12-bit ADC |
+| MCP4822 + op-amp front-end | Chirp ramp DAC, IF amplifiers |
+
+## License
+
+MIT
+
+## Author
+
+**Ansh Shah**
