@@ -227,3 +227,7 @@ sim_build/
 *.fst.hier
 results.xml
 __pycache__/
+
+# Private docs - never commit (see owner request)
+docs/PLAN.md
+docs/EXPLANATIONS.md
