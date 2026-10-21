@@ -227,6 +227,8 @@ sim_build/
 *.fst.hier
 results.xml
 __pycache__/
+fpga/gowin/**/impl/
+*.gprj.user
 
 # Private docs - never commit (see owner request)
 docs/PLAN.md

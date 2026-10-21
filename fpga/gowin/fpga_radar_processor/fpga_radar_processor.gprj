@@ -1,0 +1,12 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW2A-18C" pn="GW2A-LV18PG256C8/I7">gw2a18c-011</Device>
+    <FileList>
+        <File path="Z:/home/anshs/FMCW-Vehicle-Radar-Processor-on-FPGA/rtl/common/counter.sv" type="file.verilog" enable="1"/>
+        <File path="Z:/home/anshs/FMCW-Vehicle-Radar-Processor-on-FPGA/rtl/pkg/radar_pkg.sv" type="file.verilog" enable="1"/>
+        <File path="radar.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>
