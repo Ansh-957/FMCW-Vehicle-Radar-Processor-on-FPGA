@@ -1,10 +1,9 @@
-// counter: M0 smoke-test module. Proves the cocotb + Verilator flow and
-// Gowin synthesis before any real RTL exists.
+//smoke test module for the cocotb and synthesis flow
 module counter #(
     parameter int unsigned WIDTH = 8
 ) (
     input  logic             clk,
-    input  logic             rst,     // synchronous, active high
+    input  logic             rst,
     input  logic             en_i,
     output logic [WIDTH-1:0] count_o
 );

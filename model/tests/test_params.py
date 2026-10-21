@@ -1,4 +1,4 @@
-"""Sanity checks on derived parameters (PLAN.md section 2)."""
+"""sanity checks on derived parameters"""
 
 import pytest
 
@@ -14,7 +14,6 @@ def test_max_range():
 
 
 def test_beat_slope():
-    # ~5.21 kHz per metre
     assert P.BEAT_HZ_PER_M == pytest.approx(5210, rel=0.01)
 
 
@@ -27,7 +26,7 @@ def test_max_velocity():
 
 
 def test_frame_timing_budget():
-    # acquisition must leave >30 ms for processing in a 50 ms frame
+    #acquisition must leave over 30 ms for processing in a 50 ms frame
     assert P.FRAME_ACQ_TIME == pytest.approx(17.92e-3)
     assert P.FRAME_PERIOD - P.FRAME_ACQ_TIME > 30e-3
 

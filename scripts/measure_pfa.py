@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-"""Measure the CFAR false-alarm rate on noise-only frames.
+"""measures the cfar false alarm rate on noise only frames across a sweep
+of threshold offsets, use thousands of frames for a trustworthy rate
 
-Sweeps the threshold offset so the default (12 dB ~ 1,021 log units) can be
-validated or replaced with a measured value at M2. Every detection on a
-noise-only frame is a false alarm.
-
-Usage (from the repo root):
-    python scripts/measure_pfa.py --frames 100
-    python scripts/measure_pfa.py --frames 2000 --offsets 10,12,14
+run from the repo root
+  python scripts/measure_pfa.py --frames 100
+  python scripts/measure_pfa.py --frames 2000 --offsets 10,12,14
 """
 
 import argparse
@@ -24,10 +21,9 @@ from model.scene import Scene
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--frames", type=int, default=100,
-                    help="noise-only frames per offset (use thousands "
-                         "for a trustworthy rate)")
+                    help="noise only frames per offset")
     ap.add_argument("--offsets", default="10,12,14",
-                    help="comma-separated offsets in dB")
+                    help="comma separated offsets in dB")
     ap.add_argument("--noise", type=float, default=0.02,
                     help="noise std per component")
     ap.add_argument("--mode", default="CA", choices=["CA", "GO", "SO"])

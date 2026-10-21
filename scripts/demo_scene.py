@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""M1 demo: synthesize a scene, run the float chain, save a plot to out/.
+"""synthesize a scene, run the float chain, save a plot to out/,
+then count false alarms on noise only frames
 
-Run from the repo root:  python scripts/demo_scene.py
+run from the repo root, python scripts/demo_scene.py
 """
 
 import os
@@ -16,9 +17,9 @@ from model.scene import Scene, Target
 
 def main():
     targets = [
-        Target(range_m=12.0, velocity_mps=0.0, amplitude=1.0),   # parked car
-        Target(range_m=35.0, velocity_mps=6.5, amplitude=0.6),   # approaching
-        Target(range_m=70.0, velocity_mps=-9.0, amplitude=0.8),  # receding
+        Target(range_m=12.0, velocity_mps=0.0, amplitude=1.0),   #parked car
+        Target(range_m=35.0, velocity_mps=6.5, amplitude=0.6),   #approaching
+        Target(range_m=70.0, velocity_mps=-9.0, amplitude=0.8),  #receding
     ]
     scene = Scene(targets=targets, noise_std=0.02,
                   dc_leakage=0.3 + 0.2j, iq_gain_imbalance=0.01)
@@ -40,9 +41,9 @@ def main():
     plot_frame(rd_db, dets, path)
     print(f"saved {path}")
 
-    # False-alarm check: same chain on noise-only frames. Every detection
-    # here is a false alarm (the chronic one is the DC residual at
-    # range bin 0, Doppler bin 32, which windowed DC removal leaves behind).
+    #every detection on a noise only frame is a false alarm, the chronic
+    #one is the dc residual at range bin 0 doppler bin 32 that windowed
+    #mean subtraction leaves behind
     n_frames = 10
     total_fa = 0
     for seed in range(n_frames):

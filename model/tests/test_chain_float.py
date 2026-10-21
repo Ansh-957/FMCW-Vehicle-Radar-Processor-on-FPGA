@@ -1,5 +1,5 @@
-"""M1 acceptance tests: injected targets must appear within +/-1 bin of the
-expected range and Doppler position (PLAN.md section 10, M1)."""
+"""float chain acceptance, injected targets must appear within one bin
+of the expected range and speed"""
 
 import os
 
@@ -12,7 +12,7 @@ from model.scene import Scene, Target
 
 
 def doppler_err(a: int, b: float) -> float:
-    """Circular distance in Doppler bins (the axis wraps)."""
+    """circular distance in doppler bins since the axis wraps"""
     d = (a - b) % P.NC
     return min(d, P.NC - d)
 
@@ -30,7 +30,7 @@ def assert_detected(detections, target, tol=1.0):
 
 
 def test_known_answer_30m():
-    """PLAN.md section 9: a target at 30 m appears in range bin 40."""
+    """a target at 30 m must appear in range bin 40"""
     scene = Scene(targets=[Target(range_m=30.0, velocity_mps=0.0)])
     rd_db, dets = process_frame(scene.generate())
     det = assert_detected(dets, scene.targets[0])
@@ -68,7 +68,7 @@ def test_multiple_targets():
 
 
 def test_dc_leakage_removed():
-    """Strong transmit leakage must not produce a false target at bin 0."""
+    """strong transmit leakage must not fake a target at bin 0"""
     t = Target(range_m=25.0, velocity_mps=2.0)
     scene = Scene(targets=[t], dc_leakage=0.5 + 0.3j)
     _, dets = process_frame(scene.generate())
@@ -86,9 +86,22 @@ def test_iq_imbalance_tolerated():
     assert_detected(dets, t)
 
 
+def test_noise_only_few_false_alarms():
+    scene = Scene(targets=[], noise_std=0.05, seed=42)
+    _, dets = process_frame(scene.generate())
+    assert len(dets) <= 5
+
+
+def test_speed_aliasing():
+    """a target past the speed limit wraps to the predicted aliased bin"""
+    t = Target(range_m=50.0, velocity_mps=15.0)
+    _, dets = process_frame(Scene(targets=[t]).generate())
+    assert_detected(dets, t)  #expected_doppler_bin already wraps
+
+
 def test_straddling_target_isolated():
-    """A weak target exactly between two range bins, far from anything
-    else, must still be detected despite the ~1.4 dB Hann scalloping loss."""
+    """a weak target exactly between two range bins and far from anything
+    else survives the hann scalloping loss"""
     t = Target(range_m=P.bin_to_range(80.5), velocity_mps=0.0, amplitude=0.35)
     strong = Target(range_m=30.0, velocity_mps=0.0, amplitude=1.0)
     _, dets = process_frame(Scene(targets=[strong, t],
@@ -97,35 +110,20 @@ def test_straddling_target_isolated():
 
 
 def test_weak_straddler_masked_in_ca_recovered_by_so():
-    """A weak straddling target inside a strong target's CFAR training
-    window is masked under CA/GO (the strong peak inflates the training
-    mean) but recovered by SO. This documents the masking behaviour the
-    CFAR mode register exists to address."""
-    strong = Target(range_m=30.0, velocity_mps=0.0, amplitude=1.0)  # bin 40
+    """a weak straddling target inside a strong target's training window
+    is masked under CA and GO because the strong peak inflates the
+    training mean, SO recovers it, this is why the mode register exists"""
+    strong = Target(range_m=30.0, velocity_mps=0.0, amplitude=1.0)  #bin 40
     weak = Target(range_m=P.bin_to_range(46.5), velocity_mps=0.0,
-                  amplitude=0.35)  # -9 dB, 6.5 bins away: inside guard+train
+                  amplitude=0.35)  #-9 dB, 6.5 bins away
     data = Scene(targets=[strong, weak], noise_std=0.01, seed=1).generate()
 
     _, dets_ca = process_frame(data, mode="CA")
     with pytest.raises(AssertionError):
-        assert_detected(dets_ca, weak)  # masked: known CA limitation
+        assert_detected(dets_ca, weak)  #masked, known CA limitation
 
     _, dets_so = process_frame(data, mode="SO")
-    assert_detected(dets_so, weak)  # SO's smaller-side mean recovers it
-
-
-def test_noise_only_few_false_alarms():
-    scene = Scene(targets=[], noise_std=0.05, seed=42)
-    _, dets = process_frame(scene.generate())
-    # CFAR controls the false-alarm rate; allow a small residue.
-    assert len(dets) <= 5
-
-
-def test_speed_aliasing():
-    """A target beyond +/-V_MAX wraps to the predicted aliased bin."""
-    t = Target(range_m=50.0, velocity_mps=15.0)  # > 11.1 m/s, aliases
-    _, dets = process_frame(Scene(targets=[t]).generate())
-    assert_detected(dets, t)  # expected_doppler_bin already wraps
+    assert_detected(dets_so, weak)
 
 
 def test_plot_frame(tmp_path):

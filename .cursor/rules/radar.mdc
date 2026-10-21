@@ -17,6 +17,16 @@ This repo is an FMCW radar signal processor in SystemVerilog for a Gowin GW2A-18
 - Do not invent hardware details (pins, IP names, register addresses). Ask, or leave a TODO.
 - When unsure about timing or latency, write the cycle-by-cycle behaviour as a comment first.
 
+## Comment style (all languages)
+
+- No space after the comment tag: `#comment` and `//comment`.
+- Start lowercase unless the first word is a name.
+- Short and human. No periods, semicolons or em dashes. No decorative
+  blocks (`-----`, `*****`). No large generated-looking comment blocks.
+- Never reference plan documents or file paths in comments. A docstring may
+  carry a brief summary of the file's logic, nothing more.
+- Verilog comments stay minimal; the owner writes those by hand.
+
 ## SystemVerilog style
 
 - SystemVerilog-2012 synthesizable subset; must pass verilator --lint-only -Wall.

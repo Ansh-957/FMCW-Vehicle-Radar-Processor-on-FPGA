@@ -4,6 +4,6 @@ matplotlib
 pytest
 cocotb>=2.0
 pyserial
-# Host viewer (M11+); comment out if PyQt wheels are unavailable:
-# pyqtgraph
-# PyQt6
+#host viewer deps, uncomment when needed
+#pyqtgraph
+#PyQt6

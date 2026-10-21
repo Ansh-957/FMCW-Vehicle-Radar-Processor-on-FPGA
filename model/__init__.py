@@ -1,1 +1,1 @@
-"""FMCW radar golden model. See docs/PLAN.md."""
+"""radar golden model"""

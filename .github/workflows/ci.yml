@@ -3,8 +3,8 @@ name: CI
 on: [push, pull_request]
 
 env:
-  # Must match the local install (~/opt/oss-cad-suite/VERSION) so CI runs
-  # the same Verilator build as the laptop.
+  #must match the local oss cad suite install so ci runs the same
+  #verilator build as the laptop
   OSS_CAD_DATE: "2026-10-18"
 
 jobs:

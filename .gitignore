@@ -219,7 +219,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Project tool outputs
+#project tool outputs
 out/
 sim_build/
 *.vcd
@@ -230,6 +230,6 @@ __pycache__/
 fpga/gowin/**/impl/
 *.gprj.user
 
-# Private docs - never commit (see owner request)
+#private docs, never commit
 docs/PLAN.md
 docs/EXPLANATIONS.md

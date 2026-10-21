@@ -1,4 +1,4 @@
-"""M0 cocotb smoke test for rtl/common/counter.sv."""
+"""cocotb smoke test for the counter"""
 
 import cocotb
 from cocotb.clock import Clock
@@ -26,7 +26,7 @@ async def test_counts_when_enabled(dut):
     await reset(dut)
     dut.en_i.value = 1
     await ClockCycles(dut.clk, 10)
-    await RisingEdge(dut.clk)  # settle
+    await RisingEdge(dut.clk)
     assert dut.count_o.value == 10
 
 

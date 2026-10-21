@@ -1,4 +1,4 @@
-# cocotb + Verilator makefile for the counter smoke test (M0).
+#cocotb and verilator makefile for the counter smoke test
 SIM ?= verilator
 TOPLEVEL_LANG ?= verilog
 

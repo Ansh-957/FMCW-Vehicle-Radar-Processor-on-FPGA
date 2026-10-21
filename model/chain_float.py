@@ -1,12 +1,11 @@
-"""Floating-point reference processing chain (milestone M1).
+"""floating point reference chain, behavioural sketch of the pipeline
 
-Mirrors the RTL pipeline in PLAN.md section 3:
-    DC removal -> range window -> range FFT (keep bins 0..127) ->
-    corner turn -> Doppler window -> Doppler FFT (fftshift) ->
-    log power -> CA/GO/SO-CFAR -> 3x3 peak detect -> target list
+dc removal, range window and fft keeping bins 0..127, corner turn,
+doppler window and fft with fftshift, log power, cfar, 3x3 peak
+detect, target list
 
-This is the behavioural reference; model/fixed/ (M2) reproduces it with
-integer arithmetic bit-exact to the RTL.
+the integer model in model/fixed/ is the binding reference, this one
+checks the algorithm before quantization enters the picture
 """
 
 from dataclasses import dataclass
@@ -33,31 +32,28 @@ class Detection:
 
 
 def dc_remove(chirps: np.ndarray) -> np.ndarray:
-    """Subtract each chirp's own mean per channel. The RTL does the same:
-    it accumulates the sum while the chirp fills the FFT input bank, then a
-    ~256-cycle pre-pass subtracts the mean before the transform (PLAN.md
-    section 4), so model and RTL match exactly with no first-chirp case."""
+    """subtract each chirp's own mean per channel, the hardware does the
+    same with a pre pass over the fft input bank"""
     return chirps - chirps.mean(axis=1, keepdims=True)
 
 
 def range_fft(chirps: np.ndarray) -> np.ndarray:
-    """(NC, NS) time samples -> (NC, NS//2) complex range profiles."""
+    """(NC, NS) time samples to (NC, NS//2) complex range profiles"""
     win = np.hanning(P.NS)
     spec = np.fft.fft(chirps * win[None, :], axis=1)
-    return spec[:, : P.N_RANGE_BINS]  # positive-beat half: 0..~96 m
+    return spec[:, : P.N_RANGE_BINS]  #positive beat half
 
 
 def doppler_fft(range_profiles: np.ndarray) -> np.ndarray:
-    """(NC, N_RANGE_BINS) -> (N_RANGE_BINS, NC) complex range-Doppler map.
-    The transpose is the 'corner turn'; fftshift puts zero speed at bin 32."""
-    corner = range_profiles.T  # (range, chirp)
+    """corner turn then per range bin window and fft, fftshift puts
+    zero speed at bin 32"""
+    corner = range_profiles.T
     win = np.hanning(P.NC)
     spec = np.fft.fft(corner * win[None, :], axis=1)
     return np.fft.fftshift(spec, axes=1)
 
 
 def log_power(rd_map: np.ndarray) -> np.ndarray:
-    """Complex map -> power in dB (floor avoids log of zero)."""
     p = rd_map.real**2 + rd_map.imag**2
     return 10 * np.log10(np.maximum(p, 1e-12))
 
@@ -68,10 +64,8 @@ def cfar(rd_db: np.ndarray,
          offset_db: float = P.CFAR_OFFSET_DB,
          mode: str = P.CFAR_MODE,
          exclude_zero_doppler: bool = False) -> np.ndarray:
-    """Cell-averaging CFAR along range for each Doppler column.
-
-    Training means are computed in linear power. At the array edges only
-    the side that exists is used. Returns a boolean detect map."""
+    """cell averaging cfar along range for each doppler column, training
+    means in linear power, at the edges only the existing side is used"""
     lin = 10 ** (rd_db / 10)
     n_r, n_d = lin.shape
     detect = np.zeros((n_r, n_d), dtype=bool)
@@ -99,14 +93,13 @@ def cfar(rd_db: np.ndarray,
 
 
 def peak_detect(rd_db: np.ndarray, detect: np.ndarray) -> np.ndarray:
-    """Keep a detection only if it beats all 8 neighbours in a 3x3 window."""
+    """keep a detection only if it beats all 8 neighbours"""
     padded = np.pad(rd_db, 1, mode="constant", constant_values=-np.inf)
     out = detect.copy()
     rows, cols = np.nonzero(detect)
     for r, d in zip(rows, cols):
         window = padded[r: r + 3, d: d + 3]
         if rd_db[r, d] < window.max() or (window == rd_db[r, d]).sum() > 1:
-            # not the strict unique maximum of its neighbourhood
             if rd_db[r, d] < window.max():
                 out[r, d] = False
     return out
@@ -115,7 +108,8 @@ def peak_detect(rd_db: np.ndarray, detect: np.ndarray) -> np.ndarray:
 def target_list(rd_db: np.ndarray, peaks: np.ndarray,
                 noise_db: float | None = None,
                 max_targets: int = P.MAX_TARGETS) -> list:
-    """Collect detections, strongest first, capped at max_targets."""
+    """collect detections strongest first, capped, snr against the map
+    median as a robust floor estimate"""
     if noise_db is None:
         noise_db = float(np.median(rd_db))
     dets = [Detection(int(r), int(d), float(rd_db[r, d]),
@@ -126,7 +120,7 @@ def target_list(rd_db: np.ndarray, peaks: np.ndarray,
 
 
 def process_frame(chirps: np.ndarray, **cfar_kwargs) -> tuple:
-    """Full chain: (NC, NS) complex samples -> (rd_map_db, detections)."""
+    """full chain, (NC, NS) complex samples to (rd_map_db, detections)"""
     x = dc_remove(chirps)
     rp = range_fft(x)
     rd = doppler_fft(rp)
@@ -137,7 +131,7 @@ def process_frame(chirps: np.ndarray, **cfar_kwargs) -> tuple:
 
 
 def plot_frame(rd_db: np.ndarray, detections: list, path: str) -> None:
-    """Save a range-Doppler heat map with detections marked."""
+    """save a range doppler heat map with detections marked"""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

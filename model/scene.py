@@ -1,13 +1,9 @@
-"""Synthetic radar scene generator (milestone M1).
+"""synthetic radar scenes, builds the complex baseband i/q samples the adc
+would capture for point targets plus noise, dc leakage and i/q imbalance
 
-Produces the complex baseband I/Q samples the ADC would capture for a set
-of point targets, including thermal noise, DC transmit leakage and I/Q
-gain/phase imbalance.
-
-Signal model (per target, per chirp k, per sample n):
-    beat frequency  f_b   = 2*B*R/(c*Tc) + 2*v/lambda      (range + Doppler coupling)
-    phase per chirp dphi  = 2*pi * (2*v/lambda) * Tr        (Doppler progression)
-    s[k, n] = A * exp(j*(2*pi*f_b*n/fs + k*dphi + phi0))
+per target the beat frequency is 2*B*R/(c*Tc) + 2*v/lambda and the phase
+advances 2*pi*(2*v/lambda)*Tr per chirp, built from physics so the chain
+tests stay independent of the chain's own bin math
 """
 
 from dataclasses import dataclass, field
@@ -19,10 +15,10 @@ from . import params as P
 
 @dataclass
 class Target:
-    range_m: float          # 0 .. ~96 m
-    velocity_mps: float     # positive = approaching; aliases beyond +/-11.1 m/s
-    amplitude: float = 1.0  # linear, 1.0 = full-scale-ish before windowing
-    phase0: float = 0.0     # initial phase, rad
+    range_m: float          #0 to ~96 m
+    velocity_mps: float     #positive is approaching, aliases past the limit
+    amplitude: float = 1.0
+    phase0: float = 0.0
 
     @property
     def expected_range_bin(self) -> float:
@@ -36,14 +32,14 @@ class Target:
 @dataclass
 class Scene:
     targets: list = field(default_factory=list)
-    noise_std: float = 0.01        # complex noise std per component
-    dc_leakage: complex = 0.0      # constant transmit-leakage offset
-    iq_gain_imbalance: float = 0.0  # fractional Q-gain error, e.g. 0.02 = 2%
-    iq_phase_imbalance: float = 0.0  # Q-phase error, rad
+    noise_std: float = 0.01        #complex noise std per component
+    dc_leakage: complex = 0.0      #constant transmit leakage offset
+    iq_gain_imbalance: float = 0.0  #fractional q gain error
+    iq_phase_imbalance: float = 0.0  #q phase error, rad
     seed: int = 0
 
     def generate(self) -> np.ndarray:
-        """Return a (NC, NS) complex128 array: one row per chirp."""
+        """returns a (NC, NS) complex array, one row per chirp"""
         rng = np.random.default_rng(self.seed)
         n = np.arange(P.NS)
         k = np.arange(P.NC)
@@ -57,15 +53,13 @@ class Scene:
                      + dphi_chirp * k[:, None] + t.phase0)
             data += t.amplitude * np.exp(1j * phase)
 
-        # Thermal noise.
         if self.noise_std > 0:
             data += self.noise_std * (rng.standard_normal(data.shape)
                                       + 1j * rng.standard_normal(data.shape))
 
-        # DC transmit leakage.
         data += self.dc_leakage
 
-        # I/Q imbalance applied to the Q channel.
+        #imbalance applied to the q channel
         if self.iq_gain_imbalance or self.iq_phase_imbalance:
             i = data.real
             q = data.imag
@@ -77,8 +71,8 @@ class Scene:
         return data
 
     def to_adc_codes(self, full_scale: float = 4.0) -> np.ndarray:
-        """Quantize to 12-bit offset-binary ADC codes, shape (NC, NS, 2)
-        with [..., 0] = I and [..., 1] = Q."""
+        """quantize to 12 bit offset binary codes, shape (NC, NS, 2)
+        with [..., 0] = i and [..., 1] = q"""
         data = self.generate()
         scale = (P.ADC_MID - 1) / full_scale
         i = np.clip(np.round(data.real * scale) + P.ADC_MID, 0, 2**P.ADC_BITS - 1)
