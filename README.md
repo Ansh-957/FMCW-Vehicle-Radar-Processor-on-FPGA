@@ -4,7 +4,7 @@
 
 A real-time signal processor for a 24 GHz automotive radar, written in SystemVerilog for a Sipeed Tang Primer 20K FPGA. It turns raw radar echoes into a live **distance × speed map** on an HDMI monitor and streams a **list of detected vehicles** to a laptop, with the goal of running in a real car.
 
-> **Status:** in progress. The simulation environment, floating-point golden model and bit-exact fixed-point golden model (milestones M0–M2) are complete and passing CI, with the datapath widths frozen at <0.5 dB SNR loss versus floating point. The RTL common library is next. See [Roadmap](#roadmap).
+> **Status:** in progress. The golden models (float + bit-exact fixed point, <0.5 dB SNR loss, widths frozen) and the RTL common library (RAM/ROM, sync/async FIFOs, CDC cells, skid buffer, UART) are complete with per-module cocotb testbenches, all passing CI. The DSP front end is next. See [Roadmap](#roadmap).
 
 ---
 
