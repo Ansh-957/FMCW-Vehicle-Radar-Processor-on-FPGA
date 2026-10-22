@@ -32,13 +32,14 @@ jobs:
           echo "PATH=$PATH:$HOME/oss-cad-suite/bin" >> "$GITHUB_ENV"
       - name: Verilator lint
         run: |
-          verilator --lint-only -Wall --top-module counter rtl/pkg/radar_pkg.sv rtl/common/counter.sv
+          #common/*.sv listed once, dsp/frontend files appended
           for f in rtl/common/*.sv rtl/dsp/*.sv rtl/frontend/*.sv; do
             top=$(basename "$f" .sv)
-            [ "$top" = "counter" ] && continue
             echo "lint $top"
+            extra=()
+            case "$f" in rtl/common/*) ;; *) extra=("$f") ;; esac
             verilator --lint-only -Wall --top-module "$top" \
-              rtl/pkg/radar_pkg.sv rtl/common/*.sv "$f"
+              rtl/pkg/radar_pkg.sv rtl/common/*.sv "${extra[@]}"
           done
       - name: Install Verible
         run: |
