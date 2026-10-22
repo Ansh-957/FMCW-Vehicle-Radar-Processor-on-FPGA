@@ -4,7 +4,7 @@
 
 A real-time signal processor for a 24 GHz automotive radar, written in SystemVerilog for a Sipeed Tang Primer 20K FPGA. It turns raw radar echoes into a live **distance × speed map** on an HDMI monitor and streams a **list of detected vehicles** to a laptop, with the goal of running in a real car.
 
-> **Status:** in progress. The golden models (float + bit-exact fixed point, <0.5 dB SNR loss, widths frozen) and the RTL common library (RAM/ROM, sync/async FIFOs, CDC cells, skid buffer, UART) are complete with per-module cocotb testbenches, all passing CI. The DSP front end is next. See [Roadmap](#roadmap).
+> **Status:** in progress. A bit-exact Python golden model, the common RTL library, and the front of the processing chain (`dc_remove`, `window_mult`, `test_tone_gen`) are in place and verified. The FFT engine is next.
 
 ---
 
@@ -101,7 +101,7 @@ FPGA builds use the free **Gowin EDA Education Edition**, targeting device `GW2A
 
 ## Results
 
-Measured numbers will be published here as milestones complete: FPGA utilization, Fmax per clock domain, frame latency, functional coverage, and detection accuracy against tape-measured distances.
+Measured numbers will be published here as the design matures: FPGA utilization, Fmax per clock domain, frame latency, functional coverage, and detection accuracy against tape-measured distances.
 
 ## Hardware
 

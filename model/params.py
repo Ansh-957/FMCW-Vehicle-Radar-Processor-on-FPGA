@@ -89,3 +89,22 @@ def bin_to_range(b: float) -> float:
 
 def bin_to_velocity(b: float) -> float:
     return (b - DOPPLER_ZERO_BIN) * VEL_RES
+
+
+#test tone nco, mirrored in radar_pkg
+N_TONES = 4
+PHASE_W = 32
+NCO_IDX_BITS = 8          #top bits of the phase word index the 256-entry lut
+LFSR_SEED = 0xACE1
+NOISE_SHIFT = 15          #rhu(s12(lfsr)*gain, 15), gain 32768 is unity
+
+
+def fw_for_range_bin(k: int) -> int:
+    """phase word so a tone lands in range fft bin k, k * 2**32 / NS"""
+    return (int(k) << (PHASE_W - 8)) & 0xFFFFFFFF
+
+
+def dphi_for_doppler_bin(d: int) -> int:
+    """phase step per chirp so a tone lands in fftshifted doppler bin d"""
+    u = (int(d) + NC // 2) % NC
+    return (u * (1 << PHASE_W) // NC) & 0xFFFFFFFF

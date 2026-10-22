@@ -45,6 +45,22 @@ package radar_pkg;
 
   localparam int unsigned UART_BAUD_DEFAULT = 921_600;
 
+  //test tone nco
+  localparam int unsigned N_TONES       = 4;
+  localparam int unsigned PHASE_W       = 32;
+  localparam int unsigned NCO_IDX_BITS  = 8;
+  localparam int unsigned NCO_DEPTH     = 256;
+  localparam int unsigned NCO_WIDTH     = 36;
+  localparam logic [15:0] LFSR_SEED     = 16'hACE1;
+  localparam int unsigned NOISE_SHIFT   = 15;
+
+  typedef struct packed {
+    logic               en;
+    logic signed [15:0] amp;
+    logic [31:0]        fw;
+    logic [31:0]        dphi;
+  } tone_cfg_t;
+
   localparam logic [11:0] ADDR_ID           = 12'h000;
   localparam logic [11:0] ADDR_STATUS       = 12'h004;
   localparam logic [11:0] ADDR_CONTROL      = 12'h008;

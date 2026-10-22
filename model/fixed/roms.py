@@ -44,6 +44,16 @@ def log_lut():
 
 
 @lru_cache(maxsize=None)
+def nco():
+    """(cos, sin) int64 arrays of 256 entries, Q1.17, exp(+j*2*pi*k/256)"""
+    packed = _read_mem("nco256.mem")
+    re = np.array([_to_signed(p >> 18, 18) for p in packed], dtype=np.int64)
+    im = np.array([_to_signed(p & 0x3FFFF, 18) for p in packed],
+                  dtype=np.int64)
+    return re, im
+
+
+@lru_cache(maxsize=None)
 def colormap():
     """256 x (r, g, b) int64 for the display path"""
     packed = _read_mem("colormap.mem")

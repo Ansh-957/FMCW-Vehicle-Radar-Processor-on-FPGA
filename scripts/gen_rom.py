@@ -11,6 +11,7 @@ outputs one hex word per line into rtl/mem/
                  cos +1.0 which saturates to 131071
   log_lut.mem    256 x u8 of round(256*log2(1 + m/256))
   colormap.mem   256 x 24 bit rgb888 inferno palette
+  nco256.mem     256 x 36 bit packed {cos, sin} Q1.17 of exp(+j*2*pi*k/256)
 """
 
 import os
@@ -50,6 +51,19 @@ def twiddles():
     return packed
 
 
+def nco():
+    k = np.arange(256)
+    ang = 2 * np.pi * k / 256.0
+    re = np.clip(np.round(np.cos(ang) * (1 << 17)), -Q17_MAX - 1, Q17_MAX)
+    im = np.clip(np.round(np.sin(ang) * (1 << 17)), -Q17_MAX - 1, Q17_MAX)
+    packed = []
+    for r, i in zip(re.astype(np.int64), im.astype(np.int64)):
+        r18 = int(r) & 0x3FFFF
+        i18 = int(i) & 0x3FFFF
+        packed.append((r18 << 18) | i18)
+    return packed
+
+
 def log_lut():
     m = np.arange(256)
     return np.round(256 * np.log2(1 + m / 256.0)).astype(np.int64)
@@ -72,6 +86,7 @@ def main():
     write_mem("twiddle128.mem", twiddles(), 9)
     write_mem("log_lut.mem", log_lut(), 2)
     write_mem("colormap.mem", colormap(), 6)
+    write_mem("nco256.mem", nco(), 9)
 
 
 if __name__ == "__main__":

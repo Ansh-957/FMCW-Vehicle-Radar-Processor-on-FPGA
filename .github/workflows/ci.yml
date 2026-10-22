@@ -31,7 +31,15 @@ jobs:
           tar xzf oss.tgz -C "$HOME"
           echo "PATH=$PATH:$HOME/oss-cad-suite/bin" >> "$GITHUB_ENV"
       - name: Verilator lint
-        run: verilator --lint-only -Wall --top-module counter rtl/pkg/radar_pkg.sv rtl/common/counter.sv
+        run: |
+          verilator --lint-only -Wall --top-module counter rtl/pkg/radar_pkg.sv rtl/common/counter.sv
+          for f in rtl/common/*.sv rtl/dsp/*.sv rtl/frontend/*.sv; do
+            top=$(basename "$f" .sv)
+            [ "$top" = "counter" ] && continue
+            echo "lint $top"
+            verilator --lint-only -Wall --top-module "$top" \
+              rtl/pkg/radar_pkg.sv rtl/common/*.sv "$f"
+          done
       - name: Install Verible
         run: |
           curl -fL -o verible.tar.gz \

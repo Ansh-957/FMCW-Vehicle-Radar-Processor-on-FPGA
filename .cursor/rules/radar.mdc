@@ -16,6 +16,10 @@ This repo is an FMCW radar signal processor in SystemVerilog for a Gowin GW2A-18
 - Every RTL module needs a cocotb test in tb/cocotb/<module>/ that compares against the model.
 - Do not invent hardware details (pins, IP names, register addresses). Ask, or leave a TODO.
 - When unsure about timing or latency, write the cycle-by-cycle behaviour as a comment first.
+- The owner writes fft_engine, fft_sched, frame_buffer, cfar_ca and
+  peak_detect. Do not draft those modules. Review, tests and scaffolding
+  only. Fold dc_remove's private chirp RAM into the FFT input-bank
+  pre-pass rather than instantiating that RAM in the core.
 
 ## Comment style (all languages)
 
